@@ -1,0 +1,5 @@
+FROM httpd
+LABEL version="1.0"
+LABEL description="Docker Nodejs LB HelloWorldApp"
+COPY ./helloWorldApp-httpd-byIP.conf /usr/local/apache2/conf/httpd.conf
+COPY ./helloWorldApp-httpd-vhosts-byIP.conf /usr/local/apache2/conf/extra/httpd-vhosts.conf
