@@ -1,0 +1,53 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docket Bridge Network
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+docker network create -d bridge --subnet=172.18.0.0/16 --gateway=172.18.0.1 pradiptaDockerPocBridgeNet
+docker build -f Dockerfile -t helloworldapp-test .
+docker run -p 4500:4500 --network pradiptaDockerPocBridgeNet -it --rm --name helloworldapp-test-node0 helloworldapp-test 
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docket start Nodejs container by binding to local file system and exposing a port
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+docker run --env MOCK_PORT=4501 --expose 4501 -p 4501:4501 --network pradiptaDockerPocBridgeNet -it --name helloworldapp-test-4501 -v /home/pradipta/helloWorldApp:/home/pradipta/helloWorldApp -w /home/pradipta/helloWorldApp node node helloWorld.js
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docket Create nodejs helloworld app image and start two containers. Containers may not exit and hence stop and start them from other terminals
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+docker build -f Dockerfile -t nodejs-helloworldapp .
+docker run --env MOCK_PORT=8531 --expose 8531 -p 8531:8531 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node1 nodejs-helloworldapp
+docker run --env MOCK_PORT=8532 --expose 8532 -p 8532:8532 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node2 nodejs-helloworldapp
+
+docker stop container_id_1 container_id_2
+docker start container_id_1 container_id_2
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docket Create nodejs helloworld app image and start two containers. Containers may not exit and hence stop and start them from other terminals
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+docker build -f Dockerfile -t nodejs-httpd-helloworldapp-lb .
+docker build -f Dockerfile-byIP -t nodejs-httpd-helloworldapp-lb-ip .
+docker run --expose 8530 -p 8530:8530 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-lb nodejs-httpd-helloworldapp-lb
+docker run --expose 8533 -p 8533:8533 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-lb-ip nodejs-httpd-helloworldapp-lb-ip
+
+docker stop container_id_1 container_id_2
+docker start container_id_1 container_id_2
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docket connect to an existing running container and open a terminal on /bin/bash shell
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+docker exec -i -t cab30290b126 /bin/bash
+
+docker exec -i -t 665b4a1e17b6 /bin/bash 						#by ID
+docker exec -i -t loving_heisenberg /bin/bash 					#by Name
+
+will return simillar prompt:
+	root@665b4a1e17b6:/#
+
+==========================================================================================================================================================
