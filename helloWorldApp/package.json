@@ -1,0 +1,23 @@
+{
+  "name": "helloworldapp",
+  "version": "1.0.0",
+  "description": "this will send a hello world greetings",
+  "main": "helloWorld.js",
+  "scripts": {
+	"start": "node helloWorld.js",
+	"start-port": "node helloWorld.js 8546",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "hello",
+    "world",
+    "node",
+    "nodejs"
+  ],
+  "author": "Pradipta Basu",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "express": "^4.14.0"
+  }
+}
