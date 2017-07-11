@@ -21,6 +21,9 @@ docker build -f Dockerfile -t nodejs-helloworldapp .
 docker run --env MOCK_PORT=8531 --expose 8531 -p 8531:8531 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node1 nodejs-helloworldapp
 docker run --env MOCK_PORT=8532 --expose 8532 -p 8532:8532 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node2 nodejs-helloworldapp
 
+docker run --env MOCK_PORT=8531 --expose 8531 -p 8531:8531 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node1 --hostname nodejs-helloworldapp-node1 nodejs-helloworldapp
+docker run --env MOCK_PORT=8532 --expose 8532 -p 8532:8532 --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node2 --hostname nodejs-helloworldapp-node2 nodejs-helloworldapp
+
 docker stop container_id_1 container_id_2
 docker start container_id_1 container_id_2
 
