@@ -1,0 +1,682 @@
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+					DOCKER MACHINE AND SWARM INSTALLATION AND PoC
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------------------------------- VIRTUAL BOX NAT-NETWORK DHCP ALLOCATED IPs FOR PoC VMs ----------------------------
+		dockerlocal (10.0.2.4)
+		manager1 (10.0.2.15)
+		manager2 (10.0.2.5)
+		worker1 (10.0.2.6)
+		worker2 (10.0.2.8)
+		worker3 (10.0.2.7)
+-------------------------------- VIRTUAL BOX NAT-NETWORK DHCP ALLOCATED IPs FOR PoC VMs ----------------------------
+
+
+-------------------------------- ADD THESE ENTRIES ON THE  /etc/hosts  FILE OF ALL PoC VMs ----------------------------
+	10.0.2.4    dockerlocal
+	10.0.2.15   manager1
+	10.0.2.5    manager2
+	10.0.2.6    worker1
+	10.0.2.8    worker2
+	10.0.2.7    worker3
+-------------------------------- ADD THESE ENTRIES ON THE  /etc/hosts  FILE OF ALL PoC VMs ----------------------------
+
+
+---------------------- GENERATE SSH KEYS ON EACH VM AND SETUP SSH PASSWORDLESS LOGIN BETWEEN THEM. EXECUTE THESE ON ALL VMs --------------------
+	clear && clear && ssh-keygen
+	ssh-copy-id root@dockerlocal
+	ssh-copy-id root@manager1
+	ssh-copy-id root@manager2
+	ssh-copy-id root@worker1
+	ssh-copy-id root@worker2
+	ssh-copy-id root@worker3
+---------------------- GENERATE SSH KEYS ON EACH VM AND SETUP SSH PASSWORDLESS LOGIN BETWEEN THEM. EXECUTE THESE ON ALL VMs --------------------
+
+
+-------------------------------- CREATE AND EXECUTE NETWORK AND SSH TEST SCRIPTS ON ALL PoC VMs ----------------------------
+	vi physicalNetworkTest.sh
+		clear
+		clear
+		clear
+		traceroute dockerlocal
+		traceroute manager1
+		traceroute manager2
+		traceroute worker1
+		traceroute worker2
+		traceroute worker3
+		
+		ping -c 5 dockerlocal
+		ping -c 5 manager1
+		ping -c 5 manager2
+		ping -c 5 worker1
+		ping -c 5 worker2
+		ping -c 5 worker3
+		
+	chmod 755 physicalNetworkTest.sh
+	
+	
+	vi sshTest.sh
+		ssh root@dockerlocal ls -lah
+		ssh root@manager1 ls -lah
+		ssh root@manager2 ls -lah
+		ssh root@worker1 ls -lah
+		ssh root@worker2 ls -lah
+		ssh root@worker3 ls -lah
+
+	chmod 755 sshTest.sh
+-------------------------------- CREATE AND EXECUTE NETWORK AND SSH TEST SCRIPTS ON ALL PoC VMs ----------------------------
+
+
+-------------------- DOCKER INSTALL ON LOCAL MACHINE FROM WHERE, DOCKER COMMANDS TO OTHER MACHINES WILL BE EXECUTED --------------------
+	yum remove docker docker-common docker-selinux docker-engine
+	yum install yum-utils device-mapper-persistent-data lvm2
+	yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo				  
+	yum makecache fast
+	yum update
+	yum install docker-ce
+	---- IF MULTIPLE VERSION OF DOCKER REPOSITORY IS PRESENT IN SYSTEM, list the docker versions and install the stable one
+			yum list docker-ce.x86_64  --showduplicates | sort -r
+			yum install docker-ce-<VERSION>
+	systemctl start docker
+-------------------- DOCKER INSTALL ON LOCAL MACHINE FROM WHERE, DOCKER COMMANDS TO OTHER MACHINES WILL BE EXECUTED --------------------
+
+
+-------------------- DOCKER-MACHINE INSTALL ON LOCAL MACHINE FROM WHERE, DOCKER COMMANDS TO OTHER MACHINES WILL BE EXECUTED --------------------
+	curl -L https://github.com/docker/machine/releases/download/v0.12.1/docker-machine-`uname -s`-`uname -m` >/tmp/docker-machine
+	chmod +x /tmp/docker-machine
+	sudo cp /tmp/docker-machine /usr/local/bin/docker-machine
+	rm /tmp/docker-machine
+-------------------- DOCKER-MACHINE INSTALL ON LOCAL MACHINE FROM WHERE, DOCKER COMMANDS TO OTHER MACHINES WILL BE EXECUTED --------------------
+
+
+		----------------------------- ALTERNATE WAY TO SETUP DOCKER REPOSITORY ----------------------------
+			vi /etc/yum.repos.d/docker.repo
+
+				[Docker]
+				name=Docker Repository
+				baseurl=https://yum.dockerproject.org/repo/main/centos/$releasever/
+				enabled=1
+				gpgcheck=1
+				gpgkey=https://yum.dockerproject.org/gpg
+				
+		----------------------------- ALTERNATE WAY TO SETUP DOCKER REPOSITORY ----------------------------
+
+		
+-------------------- UNIX FIREWALL BYPASS COMMANDS TO BE EXECUTED ON ALL LOCAL AND REMOTE MACHINES BEFORE RUNNING DOCKER MACHINE SETUP --------------------
+In order for Swarm to run effectively you generally need:
+	Inbound 2377 access allowed from worker to manager nodes
+	Inbound 4789 (VXLan) from all nodes to all other nodes for overlay networking to work
+	TCP port 2377 for cluster management communications TCP and UDP port 7946 for communication among nodes UDP port 4789 for overlay network traffic
+
+	In order to use the ingress network in the swarm, you need to have the following ports open between the swarm nodes before you enable swarm mode:
+
+	Port 7946 TCP/UDP for container network discovery.
+	Port 4789 UDP for the container ingress network.
+	You must also open the published port between the swarm nodes and any external resources, such as an external load balancer, that require access to the port.
+
+
+	systemctl disable firewalld
+	systemctl stop firewalld
+	systemctl status firewalld
+
+	systemctl enable firewalld
+	systemctl start firewalld
+	systemctl status firewalld
+
+	firewall-cmd --add-port=2376/tcp --permanent
+	firewall-cmd --add-port=2376/udp --permanent
+	firewall-cmd --add-port=2375/tcp --permanent
+	firewall-cmd --add-port=2375/udp --permanent	
+	firewall-cmd --add-port=4243/tcp --permanent
+	firewall-cmd --add-port=4243/udp --permanent
+	firewall-cmd --add-port=2377/tcp --permanent
+	firewall-cmd --add-port=2377/udp --permanent
+	firewall-cmd --add-port=4789/tcp --permanent
+	firewall-cmd --add-port=4789/udp --permanent
+	firewall-cmd --add-port=7946/tcp --permanent
+	firewall-cmd --add-port=7946/udp --permanent
+	firewall-cmd --add-port=5000/tcp --permanent
+	firewall-cmd --add-port=5000/udp --permanent
+	firewall-cmd --reload
+	firewall-cmd --list-all
+	
+	--restart docker if already present
+	systemctl restart  docker
+	systemctl -l status  docker
+-------------------- UNIX FIREWALL BYPASS COMMANDS TO BE EXECUTED ON ALL LOCAL AND REMOTE MACHINES BEFORE RUNNING DOCKER MACHINE SETUP --------------------
+
+
+------------------------------------------------------------ DOCKER-MACHINE SETUP ON REMOTE MACHINES ----------------------------------------------------------
+	docker-machine ls
+	docker-machine create -d generic --generic-ip-address 10.0.2.15 --generic-ssh-key $HOME/.ssh/id_rsa --generic-ssh-user root --generic-ssh-port 22 manager1
+	docker-machine create -d generic --generic-ip-address 10.0.2.5 --generic-ssh-key $HOME/.ssh/id_rsa --generic-ssh-user root --generic-ssh-port 22 manager2
+	docker-machine create -d generic --generic-ip-address 10.0.2.6 --generic-ssh-key $HOME/.ssh/id_rsa --generic-ssh-user root --generic-ssh-port 22 worker1
+	docker-machine create -d generic --generic-ip-address 10.0.2.8 --generic-ssh-key $HOME/.ssh/id_rsa --generic-ssh-user root --generic-ssh-port 22 worker2
+	docker-machine create -d generic --generic-ip-address 10.0.2.7 --generic-ssh-key $HOME/.ssh/id_rsa --generic-ssh-user root --generic-ssh-port 22 worker3
+------------------------------------------------------------ DOCKER-MACHINE SETUP ON REMOTE MACHINES ----------------------------------------------------------
+
+#setting shell to docker machine manager1
+docker-machine env manager1
+eval $(docker-machine env manager1)
+docker info | grep Name
+
+#setting shell to docker machine 
+docker-machine env <machine_name>
+eval $(docker-machine env <machine_name>)
+docker info | grep Name
+
+
+#UN-setting shell to not point to any remote machine
+docker-machine env -u
+eval $(docker-machine env -u)
+docker info | grep Name
+
+
+
+[root@dockerlocal ~]# eval $(docker-machine env manager1)
+[root@dockerlocal ~]# docker info | grep Name
+Name: manager1
+# executed against manager1
+[root@dockerlocal ~]# docker swarm init --advertise-addr 10.0.2.15
+Swarm initialized: current node (potqqcdxbfbvn3ty0gnuqtq66) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-da5m9y3915zd0ai737ys6rjbt 10.0.2.15:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+
+[root@dockerlocal ~]# docker swarm join-token manager
+docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-152crk784h5umkpsici5aqf3t manager1:2377
+
+ 
+# executed against manager1 after docker init is executed
+[root@dockerlocal ~]# docker info
+Swarm: active
+ NodeID: potqqcdxbfbvn3ty0gnuqtq66
+ Is Manager: true
+ ClusterID: sr5pa4n8t48222pc9cwcxrx6j
+ Managers: 1
+ Nodes: 1
+
+[root@dockerlocal ~]# docker info | grep Swarm
+Swarm: active
+
+
+# executed against manager1 after docker init is executed
+[root@dockerlocal ~]# docker node ls
+ID                            HOSTNAME            STATUS              AVAILABILITY        MANAGER STATUS
+potqqcdxbfbvn3ty0gnuqtq66 *   manager1            Ready               Active              Lea
+
+
+
+eval $(docker-machine env worker1)
+docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-da5m9y3915zd0ai737ys6rjbt manager1:2377
+
+eval $(docker-machine env worker2)
+docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-da5m9y3915zd0ai737ys6rjbt manager1:2377
+
+eval $(docker-machine env worker3)
+docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-da5m9y3915zd0ai737ys6rjbt manager1:2377
+
+eval $(docker-machine env manager2)
+docker swarm join --token SWMTKN-1-59eh8fnebf8hihdank7m5f2kpx97uhnoibe7z6a6z2naznos6t-152crk784h5umkpsici5aqf3t manager1:2377
+
+
+copy the helloworldapp docker project file to dockerlocal
+cd to helloWorldApp
+eval $(docker-machine env manager1)
+docker build -f Dockerfile -t nodejs-helloworldapp .
+
+docker service create --name nodejs-helloworldapp-service -p 8530:8530 --replicas 3 nodejs-helloworldapp
+
+[root@dockerlocal helloWorldApp]# docker build -f Dockerfile -t nodejs-helloworldapp .
+Sending build context to Docker daemon  1.732MB
+Step 1/9 : FROM node
+latest: Pulling from library/node
+9f0706ba7422: Pull complete
+d3942a742d22: Pull complete
+62b1123c88f6: Pull complete
+2dac6294ef18: Pull complete
+fd18c4867ed6: Pull complete
+c8b70cd3e56f: Pull complete
+29ac67902531: Pull complete
+dd362c63c80a: Pull complete
+Digest: sha256:2a3fe9a32d0de074bb2dbd46273ec452f3610cd055a2ea8bb94b020c9ff61f20
+Status: Downloaded newer image for node:latest
+ ---> 8ef72c1dee73
+Step 2/9 : LABEL version "1.0"
+ ---> Running in db6e51558a73
+ ---> 31d9439d596d
+Removing intermediate container db6e51558a73
+Step 3/9 : LABEL description "DockerSwarm-Nodejs-HelloWorldApp"
+ ---> Running in ef8720e80575
+ ---> addd3431d5fc
+Removing intermediate container ef8720e80575
+Step 4/9 : RUN mkdir -p /root/helloworldapp
+ ---> Running in b2352fa53533
+ ---> dcf61c53ad0e
+Removing intermediate container b2352fa53533
+Step 5/9 : WORKDIR /root/helloworldapp
+ ---> b7b0872d20c0
+Removing intermediate container f11cc289032e
+Step 6/9 : COPY . /root/helloworldapp
+ ---> 2cac6d532839
+Removing intermediate container 4ee3a9b4087d
+Step 7/9 : ENV MOCK_PORT 8530
+ ---> Running in 194be736c674
+ ---> e22d17b47e49
+Removing intermediate container 194be736c674
+Step 8/9 : EXPOSE 8530
+ ---> Running in 2a2b7e10a6da
+ ---> 4f2075105e4b
+Removing intermediate container 2a2b7e10a6da
+Step 9/9 : ENTRYPOINT npm start
+ ---> Running in e52865b81633
+ ---> f50d66ccf753
+Removing intermediate container e52865b81633
+Successfully built f50d66ccf753
+Successfully tagged nodejs-helloworldapp:latest
+
+
+
+[root@dockerlocal helloWorldApp]# docker service create --name nodejs-helloworldapp-service -p 8530:8530 --replicas 3 nodejs-helloworldapp
+image nodejs-helloworldapp:latest could not be accessed on a registry to record
+its digest. Each node will access nodejs-helloworldapp:latest independently,
+possibly leading to different nodes running different
+versions of the image.
+
+763nb20nwd2dw699x134tih0z
+Since --detach=false was not specified, tasks will be created in the background.
+In a future release, --detach=false will become the default.
+
+
+docker service ps nodejs-helloworldapp-service
+
+
+
+
+docker tag nodejs-helloworldapp:latest localhost:5000/nodejs-helloworldapp
+docker push dockerlocal:5000/nodejs-helloworldapp
+docker service create --name nodejs-helloworldapp-service -p 8530:8530 --replicas 3 dockerlocal:5000/nodejs-helloworldapp
+
+
+
+	firewall-cmd --add-port=8530/tcp --permanent
+	firewall-cmd --add-port=8530/udp --permanent
+	firewall-cmd --reload
+	firewall-cmd --list-all
+
+
+
+------------------------------------------------------------
+	dockerlocal (10.0.2.4)
+	manager1 (10.0.2.15)
+	manager2 (10.0.2.5)
+	worker1 (10.0.2.6)
+	worker2 (10.0.2.8)
+	worker3 (10.0.2.7)
+------------------------------------------------------------
+
+
+
+clear && clear && ifconfig -a
+
+
+export http_proxy=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/
+export https_proxy=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/
+
+
+/usr/lib/systemd/system/docker.service
+
+vi /usr/lib/systemd/system/docker.service
+	Environment="HTTP_PROXY=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/"
+	Environment="HTTPS_PROXY=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/"
+systemctl daemon-reload
+systemctl restart docker
+systemctl -l status docker
+
+
+
+docker system info --format '{{.Name}}'
+
+
+
+
+
+mkdir -p /etc/systemd/system/docker.service.d
+vi /etc/systemd/system/docker.service.d/http-proxy.conf
+	[Service]
+	Environment="HTTPS_PROXY=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/" "NO_PROXY=localhost,127.0.0.1,dockerlocal,manager1,manager2,worker1,worker2,worker3"
+
+vi /etc/systemd/system/docker.service.d/https-proxy.conf
+	[Service]
+	Environment="HTTPS_PROXY=http://user.name:passb4atrate%40passAftrAtrate@btpproxy.mphasis.com:8080/" "NO_PROXY=localhost,127.0.0.1,dockerlocal,manager1,manager2,worker1,worker2,worker3"
+
+	
+systemctl daemon-reload
+systemctl restart docker	
+systemctl -l status docker
+
+
+yum install docker-registry
+#systemctl start docker-registry
+#systemctl enable docker-registry
+docker run -d -p 5000:5000 --restart=always --name registry registry:2
+
+
+https://github.com/docker/docker.github.io/blob/master/registry/insecure.md
+vi /etc/docker/daemon.json 
+{
+  "insecure-registries" : ["dockerlocal:5000"]
+}	
+
+
+systemctl daemon-reload
+systemctl restart docker	
+systemctl -l status docker
+
+
+docker service create --name nodejs-helloworldapp-service -p 8530:8530 --replicas 2 dockerlocal:5000/nodejs-helloworldapp
+
+
+[root@dockerlocal ~]# clear
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# eval $(docker-machine env manager1)
+[root@dockerlocal ~]# docker service ls
+ID                  NAME                           MODE                REPLICAS            IMAGE                                          PORTS
+pzwpk3ocasfi        nodejs-helloworldapp-service   replicated          2/2                 dockerlocal:5000/nodejs-helloworldapp:latest   *:8530->8530/tcp
+[root@dockerlocal ~]# docker service ps nodejs-helloworldapp-service
+ID                  NAME                             IMAGE                                          NODE                DESIRED STATE       CURRENT STATE           ERROR               PORTS
+udys7tw26kwo        nodejs-helloworldapp-service.1   dockerlocal:5000/nodejs-helloworldapp:latest   worker1             Running             Running 8 minutes ago       
+2t1ovf1s56gw        nodejs-helloworldapp-service.2   dockerlocal:5000/nodejs-helloworldapp:latest   worker3             Running             Running 7 minutes ago       
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:37--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:37 (3.67 MB/s) - ‘currentHostname’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:41--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.1’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:41 (5.93 MB/s) - ‘currentHostname.1’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:42--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.2’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:42 (4.98 MB/s) - ‘currentHostname.2’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:44--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.3’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:44 (5.92 MB/s) - ‘currentHostname.3’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:45--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.4’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:45 (5.61 MB/s) - ‘currentHostname.4’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:45--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.5’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:45 (6.69 MB/s) - ‘currentHostname.5’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:46--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.6’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:46 (4.63 MB/s) - ‘currentHostname.6’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:46--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.7’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:46 (5.92 MB/s) - ‘currentHostname.7’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:46--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.8’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:46 (4.82 MB/s) - ‘currentHostname.8’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:46--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.9’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:46 (2.41 MB/s) - ‘currentHostname.9’ saved [35/35]
+
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:49--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.10’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:49 (6.51 MB/s) - ‘currentHostname.10’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:50--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.11’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:50 (7.84 MB/s) - ‘currentHostname.11’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:51--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.12’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:51 (4.24 MB/s) - ‘currentHostname.12’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:52--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.13’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:52 (3.31 MB/s) - ‘currentHostname.13’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:52--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.14’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:52 (3.91 MB/s) - ‘currentHostname.14’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:53--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.15’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:53 (4.47 MB/s) - ‘currentHostname.15’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:53--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.16’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:53 (3.22 MB/s) - ‘currentHostname.16’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:54--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.17’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:54 (4.95 MB/s) - ‘currentHostname.17’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:54--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.18’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:54 (6.52 MB/s) - ‘currentHostname.18’ saved [35/35]
+
+[root@dockerlocal ~]# wget http://worker2:8530/currentHostname
+--2017-07-14 17:48:55--  http://worker2:8530/currentHostname
+Resolving worker2 (worker2)... 10.0.2.8
+Connecting to worker2 (worker2)|10.0.2.8|:8530... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 35 [application/json]
+Saving to: ‘currentHostname.19’
+
+100%[==============================================================================================================================>] 35          --.-K/s   in 0s
+
+2017-07-14 17:48:55 (4.78 MB/s) - ‘currentHostname.19’ saved [35/35]
+
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]#
+[root@dockerlocal ~]# eval $(docker-machine env manager1)
+[root@dockerlocal ~]#
+[root@dockerlocal ~]# docker service ls
+ID                  NAME                           MODE                REPLICAS            IMAGE                                          PORTS
+pzwpk3ocasfi        nodejs-helloworldapp-service   replicated          2/2                 dockerlocal:5000/nodejs-helloworldapp:latest   *:8530->8530/tcp
+[root@dockerlocal ~]# docker service ps nodejs-helloworldapp-service
+ID                  NAME                             IMAGE                                          NODE                DESIRED STATE       CURRENT STATE           ERROR               PORTS
+udys7tw26kwo        nodejs-helloworldapp-service.1   dockerlocal:5000/nodejs-helloworldapp:latest   worker1             Running             Running 9 minutes ago       
+2t1ovf1s56gw        nodejs-helloworldapp-service.2   dockerlocal:5000/nodejs-helloworldapp:latest   worker3             Running             Running 9 minutes ago       
+[root@dockerlocal ~]# eval $(docker-machine env worker1)
+[root@dockerlocal ~]# docker ps
+CONTAINER ID        IMAGE                                          COMMAND             CREATED             STATUS              PORTS               NAMES
+7d23cd728002        dockerlocal:5000/nodejs-helloworldapp:latest   "npm start"         10 minutes ago      Up 10 minutes       8530/tcp            nodejs-helloworldapp-service.1.udys7tw26kwo0ovp3tjm3hx5i
+[root@dockerlocal ~]# eval $(docker-machine env worker3)
+[root@dockerlocal ~]# docker ps
+CONTAINER ID        IMAGE                                          COMMAND             CREATED             STATUS              PORTS               NAMES
+4aba8203f037        dockerlocal:5000/nodejs-helloworldapp:latest   "npm start"         9 minutes ago       Up 9 minutes        8530/tcp            nodejs-helloworldapp-service.2.2t1ovf1s56gwd4r1uxrwmg2o8
+[root@dockerlocal ~]# eval $(docker-machine env worker2)
+[root@dockerlocal ~]# docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+[root@dockerlocal ~]# eval $(docker-machine env -u)
+[root@dockerlocal ~]# grep -n "current_hostname" *
+currentHostname:1:{"current_hostname":"4aba8203f037"}
+currentHostname.1:1:{"current_hostname":"7d23cd728002"}
+currentHostname.10:1:{"current_hostname":"4aba8203f037"}
+currentHostname.11:1:{"current_hostname":"7d23cd728002"}
+currentHostname.12:1:{"current_hostname":"4aba8203f037"}
+currentHostname.13:1:{"current_hostname":"7d23cd728002"}
+currentHostname.14:1:{"current_hostname":"4aba8203f037"}
+currentHostname.15:1:{"current_hostname":"7d23cd728002"}
+currentHostname.16:1:{"current_hostname":"4aba8203f037"}
+currentHostname.17:1:{"current_hostname":"7d23cd728002"}
+currentHostname.18:1:{"current_hostname":"4aba8203f037"}
+currentHostname.19:1:{"current_hostname":"7d23cd728002"}
+currentHostname.2:1:{"current_hostname":"4aba8203f037"}
+currentHostname.3:1:{"current_hostname":"7d23cd728002"}
+currentHostname.4:1:{"current_hostname":"4aba8203f037"}
+currentHostname.5:1:{"current_hostname":"7d23cd728002"}
+currentHostname.6:1:{"current_hostname":"4aba8203f037"}
+currentHostname.7:1:{"current_hostname":"7d23cd728002"}
+currentHostname.8:1:{"current_hostname":"4aba8203f037"}
+currentHostname.9:1:{"current_hostname":"7d23cd728002"}
+
+
