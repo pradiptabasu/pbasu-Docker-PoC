@@ -1,0 +1,9 @@
+FROM node
+LABEL version="1.0"
+LABEL description="DockerSwarm-Nodejs-HelloWorldApp"
+RUN mkdir -p /root/helloworldapp
+WORKDIR /root/helloworldapp
+COPY . /root/helloworldapp
+ENV MOCK_PORT 8530
+EXPOSE 8530
+ENTRYPOINT ["npm", "start"]
