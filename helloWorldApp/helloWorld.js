@@ -20,6 +20,8 @@ if (!args[0]) {
 }
 
 var express = require('express');
+var os = require('os');
+var url = require('url');
 var app = express();
 var port = args[0];
 var bodyParser = require('body-parser');
@@ -186,6 +188,82 @@ app.get('/helloWorld/pradipta/greetingsPerson/:name', function(req, res) {
     res.statusCode = 200;
     res.json(greetingsResponse);
 });
+
+
+app.get('/serverInfo/all', function(req, res) {
+//	var greetingsResponse ={
+//			"greetingsName": "Hello " + req.params.name
+//	};
+//   res.statusCode = 200;
+//    res.json(greetingsResponse);
+	
+	
+	res.writeHead(200, {'Content-Type': 'text/plain'});
+	var call = url.parse(req.url).pathname.replace(/.*\/|\.[^.]*$/g, '');
+	if( call === "all"){
+		Object.keys(os).map(function(method) { res.write(method+":"+JSON.stringify(os[method](),2,true))+","; })
+	}
+	res.end(); 
+});
+
+app.get('/serverInfo/cpus', function(req, res) {
+//	var greetingsResponse ={
+//			"greetingsName": "Hello " + req.params.name
+//	};
+//   res.statusCode = 200;
+//    res.json(greetingsResponse);
+	
+	
+	res.writeHead(200, {'Content-Type': 'text/plain'});
+	var call = "cpus";
+	try{
+		var resu = os[call]();
+		res.write(JSON.stringify(resu),'utf8');
+	}
+	catch(e){
+		res.end("Sorry, try on of : "+Object.keys(os).join(", "));
+	}
+	res.end(); 
+});
+
+
+app.get('/serverInfoDynamic/:component', function(req, res) {
+//	var greetingsResponse ={
+//			"greetingsName": "Hello " + req.params.name
+//	};
+//   res.statusCode = 200;
+//    res.json(greetingsResponse);
+	
+	res.writeHead(200, {'Content-Type': 'text/plain'});
+//	var call = url.parse(req.url).pathname.replace(/.*\/|\.[^.]*$/g, '');
+	var call = req.params.component;
+	if( call === "all"){
+		Object.keys(os).map(function(method) { res.write(method+":"+JSON.stringify(os[method](),2,true))+","; })
+	}
+	else{
+		try{
+			var resu = os[call]();
+			res.write(JSON.stringify(resu),'utf8');
+		}
+		catch(e){
+			res.end("Sorry, try on of : "+Object.keys(os).join(", "));
+		}
+	}
+	res.end(); 
+});
+
+
+app.get('/currentHostname', function(req, res) {
+	var os_parameter = "hostname";
+	var current_hostname = os[os_parameter]();
+	var hostnameResponse ={
+			"current_hostname": current_hostname
+	};
+	res.statusCode = 200;
+	res.json(hostnameResponse);
+});
+
+
 
 
 //Creating the server process
