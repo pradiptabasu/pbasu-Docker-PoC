@@ -1,4 +1,39 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Docker Bridge Network
+	Docker Install Docker Private Registry
+	DOcker install Portainer    - admin/welcome1, pradipta/welcome1
+	Docker install & configure Registry UI for Docker private registry
+	Build Docker image for "nodejs-helloworldapp" node js app
+	Tag & upload "nodejs-helloworldapp" docker image to private registry
+	Docker start two containers from "nodejs-helloworldapp" image. Containers may not exit and hence stop and start them from other terminals
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+docker network create -d bridge --subnet=172.18.0.0/16 --gateway=172.18.0.1 pradiptaDockerPocBridgeNet
+
+docker run -d -p 5000:5000 --restart=always --network pradiptaDockerPocBridgeNet --name private-local-registry --hostname private-local-registry registry:2
+docker run -d -p 9000:9000 --restart=always --network pradiptaDockerPocBridgeNet --name portainer --hostname portainer -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer
+
+docker run -d -e ENV_DOCKER_REGISTRY_HOST=private-local-registry -e ENV_DOCKER_REGISTRY_PORT=5000 --restart=always -p 0.0.0.0:8000:80 --network pradiptaDockerPocBridgeNet --name docker-registry-frontend --hostname docker-registry-frontend konradkleine/docker-registry-frontend:v2
+
+docker build -f Dockerfile -t nodejs-helloworldapp .
+
+docker tag nodejs-helloworldapp:latest localhost:5000/nodejs-helloworldapp
+docker push localhost:5000/nodejs-helloworldapp
+docker image remove nodejs-helloworldapp:latest
+docker image remove localhost:5000/nodejs-helloworldapp
+docker pull localhost:5000/nodejs-helloworldapp:latest
+
+docker run -d --env MOCK_PORT=8531 --expose 8531 -p 8531:8531 --restart=always --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node1 --hostname nodejs-helloworldapp-node1 localhost:5000/nodejs-helloworldapp:latest
+
+docker run -d --env MOCK_PORT=8532 --expose 8532 -p 8532:8532 --restart=always --network pradiptaDockerPocBridgeNet -it --name nodejs-helloworldapp-node2 --hostname nodejs-helloworldapp-node2 localhost:5000/nodejs-helloworldapp:latest
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 	Docker Bridge Network
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 docker network create -d bridge --subnet=172.18.0.0/16 --gateway=172.18.0.1 pradiptaDockerPocBridgeNet
